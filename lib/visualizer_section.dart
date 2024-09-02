@@ -3,22 +3,22 @@ import 'dart:math' as math;
 import 'cut.dart';
 
 class VisualizerSection extends StatelessWidget {
-  final String selectedMaterial;
+  final double boardLength;
+  final double boardWidth;
   final double kerfValue;
   final List<Cut> cuts;
-  final double boardLength;
 
   const VisualizerSection({
     Key? key,
-    required this.selectedMaterial,
+    required this.boardLength,
+    required this.boardWidth,
     required this.kerfValue,
     required this.cuts,
-    required this.boardLength,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    List<List<double>> optimizedBoards = _optimizeCuts();
+    List<List<Cut>> optimizedBoards = _optimizeCuts();
 
     return Container(
       color: Colors.grey[200],
@@ -43,12 +43,12 @@ class VisualizerSection extends StatelessWidget {
                     children: [
                       Text('Board ${index + 1}:'),
                       SizedBox(height: 8),
-                      SizedBox(
-                        height: 100,
+                      AspectRatio(
+                        aspectRatio: boardLength / boardWidth,
                         child: CustomPaint(
-                          size: Size(double.infinity, 100),
                           painter: BoardPainter(
                             boardLength: boardLength,
+                            boardWidth: boardWidth,
                             cuts: optimizedBoards[index],
                             kerfValue: kerfValue,
                           ),
@@ -65,46 +65,70 @@ class VisualizerSection extends StatelessWidget {
     );
   }
 
-  List<List<double>> _optimizeCuts() {
-    List<double> cutLengths = [];
-    for (var cut in cuts) {
-      cutLengths.addAll(List.filled(cut.quantity, cut.length));
-    }
-    cutLengths.sort((a, b) => b.compareTo(a));
+  List<List<Cut>> _optimizeCuts() {
+    List<Cut> remainingCuts = cuts
+        .expand(
+            (cut) => List.filled(cut.quantity, Cut(cut.length, cut.width, 1)))
+        .toList();
+    remainingCuts
+        .sort((a, b) => (b.length * b.width).compareTo(a.length * a.width));
 
-    List<List<double>> boards = [];
+    List<List<Cut>> boards = [];
 
-    for (double cutLength in cutLengths) {
-      bool placed = false;
-      for (List<double> board in boards) {
-        if (_canFitCut(board, cutLength)) {
-          board.add(cutLength);
-          placed = true;
-          break;
+    while (remainingCuts.isNotEmpty) {
+      List<Cut> currentBoard = [];
+      double remainingLength = boardLength;
+      double remainingWidth = boardWidth;
+
+      for (int i = 0; i < remainingCuts.length; i++) {
+        Cut cut = remainingCuts[i];
+        if (cut.length <= remainingLength && cut.width <= remainingWidth) {
+          currentBoard.add(cut);
+          if (cut.width == remainingWidth) {
+            remainingLength -= cut.length;
+          } else {
+            remainingWidth -= cut.width;
+          }
+          remainingCuts.removeAt(i);
+          i--;
         }
       }
-      if (!placed) {
-        boards.add([cutLength]);
+
+      if (currentBoard.isNotEmpty) {
+        boards.add(currentBoard);
+      } else {
+        break; // Unable to fit any more cuts
       }
     }
 
     return boards;
   }
 
-  bool _canFitCut(List<double> board, double cutLength) {
-    double boardUsage =
-        board.reduce((a, b) => a + b) + (board.length - 1) * kerfValue;
-    return boardUsage + cutLength + kerfValue <= boardLength;
+  int _findSpace(List<bool> used, int length) {
+    int count = 0;
+    for (int i = 0; i < used.length; i++) {
+      if (!used[i]) {
+        count++;
+        if (count == length) {
+          return i - length + 1;
+        }
+      } else {
+        count = 0;
+      }
+    }
+    return -1;
   }
 }
 
 class BoardPainter extends CustomPainter {
   final double boardLength;
-  final List<double> cuts;
+  final double boardWidth;
+  final List<Cut> cuts;
   final double kerfValue;
 
   BoardPainter({
     required this.boardLength,
+    required this.boardWidth,
     required this.cuts,
     required this.kerfValue,
   });
@@ -118,65 +142,45 @@ class BoardPainter extends CustomPainter {
       textAlign: TextAlign.center,
     );
 
-    double xOffset = 0;
-    double scale = size.width / boardLength;
-
     // Draw board background
     paint.color = Colors.brown[300]!;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
+    double xOffset = 0;
+    double yOffset = 0;
+    double scaleX = size.width / boardLength;
+    double scaleY = size.height / boardWidth;
+
     // Draw cuts
     for (int i = 0; i < cuts.length; i++) {
-      double cutWidth = cuts[i] * scale;
+      Cut cut = cuts[i];
+      double cutWidth = cut.length * scaleX;
+      double cutHeight = cut.width * scaleY;
 
       // Draw cut
       paint.color = _getColor(i);
-      canvas.drawRect(Rect.fromLTWH(xOffset, 0, cutWidth, size.height), paint);
+      canvas.drawRect(
+          Rect.fromLTWH(xOffset, yOffset, cutWidth, cutHeight), paint);
 
       // Draw cut label
       textPainter.text = TextSpan(
-        text: cuts[i].toStringAsFixed(1),
-        style: const TextStyle(color: Colors.black, fontSize: 12),
+        text:
+            '${cut.length.toStringAsFixed(1)}x${cut.width.toStringAsFixed(1)}',
+        style: TextStyle(color: Colors.black, fontSize: 10),
       );
-      textPainter.layout();
+      textPainter.layout(maxWidth: cutWidth);
       textPainter.paint(
         canvas,
         Offset(xOffset + (cutWidth - textPainter.width) / 2,
-            (size.height - textPainter.height) / 2),
+            yOffset + (cutHeight - textPainter.height) / 2),
       );
 
-      xOffset += cutWidth;
-
-      // Draw kerf
-      if (i < cuts.length - 1) {
-        paint.color = Colors.red;
-        double kerfWidth = kerfValue * scale;
-        canvas.drawRect(
-            Rect.fromLTWH(xOffset, 0, kerfWidth, size.height), paint);
-        xOffset += kerfWidth;
+      if (cut.width == boardWidth) {
+        xOffset += cutWidth;
+        yOffset = 0;
+      } else {
+        yOffset += cutHeight;
       }
-    }
-
-    // Draw remaining space
-    double remainingWidth = size.width - xOffset;
-    if (remainingWidth > 0) {
-      paint.color = Colors.grey[400]!;
-      canvas.drawRect(
-          Rect.fromLTWH(xOffset, 0, remainingWidth, size.height), paint);
-
-      // Draw remaining label
-      double remaining = boardLength -
-          (cuts.reduce((a, b) => a + b) + (cuts.length - 1) * kerfValue);
-      textPainter.text = TextSpan(
-        text: 'Rem: ${remaining.toStringAsFixed(1)}',
-        style: const TextStyle(color: Colors.black, fontSize: 12),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(xOffset + (remainingWidth - textPainter.width) / 2,
-            (size.height - textPainter.height) / 2),
-      );
     }
   }
 

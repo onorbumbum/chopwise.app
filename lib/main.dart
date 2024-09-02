@@ -32,27 +32,29 @@ class CutOptimizerHome extends StatefulWidget {
 }
 
 class _CutOptimizerHomeState extends State<CutOptimizerHome> {
-  String selectedMaterial = '2x4x96';
+  double boardLength = 96.0;
+  double boardWidth = 3.5;
   double kerfValue = 0.125;
   List<Cut> cuts = [];
-  double boardLength = 96.0;
 
-  void updateMaterial(String material) {
+  void updateBoardDimensions(double length, double width) {
     setState(() {
-      selectedMaterial = material;
-      boardLength = double.parse(material.split('x').last);
+      boardLength = length > 0 ? length : 1;
+      boardWidth = width > 0 ? width : 1;
     });
   }
 
   void updateKerf(double kerf) {
     setState(() {
-      kerfValue = kerf;
+      kerfValue = kerf >= 0 ? kerf : 0;
     });
   }
 
   void updateCuts(List<Cut> newCuts) {
     setState(() {
-      cuts = newCuts;
+      cuts = newCuts
+          .where((cut) => cut.length > 0 && cut.width > 0 && cut.quantity > 0)
+          .toList();
     });
   }
 
@@ -71,21 +73,21 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
               children: [
                 Expanded(
                   child: DataInputSection(
-                    selectedMaterial: selectedMaterial,
+                    boardLength: boardLength,
+                    boardWidth: boardWidth,
                     kerfValue: kerfValue,
                     cuts: cuts,
-                    boardLength: boardLength,
-                    onMaterialSelected: updateMaterial,
+                    onBoardDimensionsChanged: updateBoardDimensions,
                     onKerfChanged: updateKerf,
                     onCutsChanged: updateCuts,
                   ),
                 ),
                 Expanded(
                   child: OptimizerOutputSection(
-                    selectedMaterial: selectedMaterial,
+                    boardLength: boardLength,
+                    boardWidth: boardWidth,
                     kerfValue: kerfValue,
                     cuts: cuts,
-                    boardLength: boardLength,
                   ),
                 ),
               ],
@@ -94,10 +96,10 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
           Expanded(
             flex: 1,
             child: VisualizerSection(
-              selectedMaterial: selectedMaterial,
+              boardLength: boardLength,
+              boardWidth: boardWidth,
               kerfValue: kerfValue,
               cuts: cuts,
-              boardLength: boardLength,
             ),
           ),
         ],
