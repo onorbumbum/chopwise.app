@@ -11,6 +11,7 @@ class DataInputSection extends StatefulWidget {
   final void Function(double, double) onBoardDimensionsChanged;
   final void Function(double) onKerfChanged;
   final void Function(List<Cut>) onCutsChanged;
+  final void Function() onBoardDimensionsSet;
 
   const DataInputSection({
     Key? key,
@@ -21,6 +22,7 @@ class DataInputSection extends StatefulWidget {
     required this.onBoardDimensionsChanged,
     required this.onKerfChanged,
     required this.onCutsChanged,
+    required this.onBoardDimensionsSet,
   }) : super(key: key);
 
   @override
@@ -41,6 +43,7 @@ class _DataInputSectionState extends State<DataInputSection> {
   late FocusNode boardWidthFocusNode;
   late FocusNode kerfFocusNode;
   final ScrollController _scrollController = ScrollController();
+  bool _isBoardDimensionsSet = false;
 
   @override
   void initState() {
@@ -87,75 +90,79 @@ class _DataInputSectionState extends State<DataInputSection> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: NumberInput(
-                    controller: boardLengthController,
-                    focusNode: boardLengthFocusNode,
-                    label: 'Board Length',
-                    allowDecimal: true,
-                    onChanged: (_) => _updateBoardDimensions(),
-                    onEditingComplete: () {
-                      boardWidthFocusNode.requestFocus();
-                    },
+    return FocusScope(
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: NumberInput(
+                      controller: boardLengthController,
+                      focusNode: boardLengthFocusNode,
+                      label: 'Board Length',
+                      allowDecimal: true,
+                      onChanged: (_) => _updateBoardDimensions(),
+                      onEditingComplete: () {
+                        FocusScope.of(context)
+                            .requestFocus(boardWidthFocusNode);
+                      },
+                    ),
                   ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: NumberInput(
-                    controller: boardWidthController,
-                    focusNode: boardWidthFocusNode,
-                    label: 'Board Width',
-                    allowDecimal: true,
-                    onChanged: (_) => _updateBoardDimensions(),
-                    onEditingComplete: () {
-                      kerfFocusNode.requestFocus();
-                    },
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: NumberInput(
+                      controller: boardWidthController,
+                      focusNode: boardWidthFocusNode,
+                      label: 'Board Width',
+                      allowDecimal: true,
+                      onChanged: (_) => _updateBoardDimensions(),
+                      onEditingComplete: () {
+                        FocusScope.of(context).requestFocus(kerfFocusNode);
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            NumberInput(
-              controller: kerfController,
-              focusNode: kerfFocusNode,
-              label: 'Blade Kerf (inches)',
-              allowDecimal: true,
-              onChanged: (value) {
-                widget
-                    .onKerfChanged(double.tryParse(value) ?? widget.kerfValue);
-              },
-              onEditingComplete: () {
-                if (lengthFocusNodes.isNotEmpty) {
-                  lengthFocusNodes.first.requestFocus();
-                }
-              },
-            ),
-            SizedBox(height: 16),
-            Text('Enter Cuts:', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: lengthControllers.length,
-              itemBuilder: (context, index) {
-                return _buildCutRow(index);
-              },
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _addCut,
-              child: Text('Add Cut'),
-            ),
-          ],
+                ],
+              ),
+              SizedBox(height: 16),
+              NumberInput(
+                controller: kerfController,
+                focusNode: kerfFocusNode,
+                label: 'Blade Kerf (inches)',
+                allowDecimal: true,
+                onChanged: (value) {
+                  widget.onKerfChanged(
+                      double.tryParse(value) ?? widget.kerfValue);
+                },
+                onEditingComplete: () {
+                  if (lengthFocusNodes.isNotEmpty) {
+                    FocusScope.of(context).requestFocus(lengthFocusNodes.first);
+                  }
+                },
+              ),
+              SizedBox(height: 16),
+              Text('Enter Cuts:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: lengthControllers.length,
+                itemBuilder: (context, index) {
+                  return _buildCutRow(index);
+                },
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _addCut(widget.boardLength, widget.boardWidth),
+                child: Text('Add Cut'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -173,7 +180,7 @@ class _DataInputSectionState extends State<DataInputSection> {
             max: widget.boardLength,
             onChanged: (_) => _updateCuts(),
             onEditingComplete: () {
-              widthFocusNodes[index].requestFocus();
+              FocusScope.of(context).requestFocus(widthFocusNodes[index]);
             },
           ),
         ),
@@ -187,7 +194,7 @@ class _DataInputSectionState extends State<DataInputSection> {
             max: widget.boardWidth,
             onChanged: (_) => _updateCuts(),
             onEditingComplete: () {
-              quantityFocusNodes[index].requestFocus();
+              FocusScope.of(context).requestFocus(quantityFocusNodes[index]);
             },
           ),
         ),
@@ -201,9 +208,10 @@ class _DataInputSectionState extends State<DataInputSection> {
             textInputAction: TextInputAction.done,
             onEditingComplete: () {
               if (index < lengthFocusNodes.length - 1) {
-                lengthFocusNodes[index + 1].requestFocus();
+                FocusScope.of(context)
+                    .requestFocus(lengthFocusNodes[index + 1]);
               } else {
-                _addCut();
+                _addCut(widget.boardLength, widget.boardWidth);
               }
             },
           ),
@@ -222,6 +230,11 @@ class _DataInputSectionState extends State<DataInputSection> {
     double width =
         double.tryParse(boardWidthController.text) ?? widget.boardWidth;
     widget.onBoardDimensionsChanged(length, width);
+
+    if (!_isBoardDimensionsSet && length > 0 && width > 0) {
+      _isBoardDimensionsSet = true;
+      widget.onBoardDimensionsSet();
+    }
   }
 
   void _updateCuts() {
@@ -250,10 +263,11 @@ class _DataInputSectionState extends State<DataInputSection> {
     }
   }
 
-  void _addCut() {
+  void _addCut(double boardLength, double boardWidth) {
     setState(() {
-      lengthControllers.add(TextEditingController(text: '0'));
-      widthControllers.add(TextEditingController(text: '0'));
+      lengthControllers
+          .add(TextEditingController(text: boardLength.toString()));
+      widthControllers.add(TextEditingController(text: boardWidth.toString()));
       quantityControllers.add(TextEditingController(text: '1'));
       lengthFocusNodes.add(FocusNode());
       widthFocusNodes.add(FocusNode());
@@ -269,7 +283,7 @@ class _DataInputSectionState extends State<DataInputSection> {
         curve: Curves.easeOut,
       );
       if (lengthFocusNodes.isNotEmpty) {
-        lengthFocusNodes.last.requestFocus();
+        FocusScope.of(context).requestFocus(lengthFocusNodes.last);
       }
     });
   }
@@ -355,7 +369,6 @@ class NumberInput extends StatelessWidget {
         if (max != null) _MaxValueFormatter(max!),
       ],
       onChanged: (value) {
-        // Only call onChanged if the value is not empty
         if (value.isNotEmpty) {
           onChanged?.call(value);
         }

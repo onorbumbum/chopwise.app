@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'cut.dart';
 import 'data_input_section.dart';
 import 'optimizer_output_section.dart';
 import 'visualizer_section.dart';
+import 'print_page.dart';
 
 void main() {
   runApp(const CutOptimizerApp());
@@ -36,6 +38,7 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
   double boardWidth = 3.5;
   double kerfValue = 0.125;
   List<Cut> cuts = [];
+  bool isBoardDimensionsSet = true;
 
   void updateBoardDimensions(double length, double width) {
     setState(() {
@@ -58,32 +61,78 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
     });
   }
 
+  void setBoardDimensions() {
+    setState(() {
+      isBoardDimensionsSet = true;
+    });
+  }
+
+  void _openPrintPage() {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (context) => PrintPage(
+          boardLength: boardLength,
+          boardWidth: boardWidth,
+          kerfValue: kerfValue,
+          cuts: cuts,
+        ),
+      ),
+    )
+        .then((_) {
+      // This ensures the main screen is rebuilt after returning from the print page
+      setState(() {});
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cut Optimizer'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: _openPrintPage,
+          ),
+        ],
       ),
-      body: Row(
+      body: Column(
         children: [
           Expanded(
-            flex: 1,
-            child: Column(
+            child: Row(
               children: [
                 Expanded(
-                  child: DataInputSection(
-                    boardLength: boardLength,
-                    boardWidth: boardWidth,
-                    kerfValue: kerfValue,
-                    cuts: cuts,
-                    onBoardDimensionsChanged: updateBoardDimensions,
-                    onKerfChanged: updateKerf,
-                    onCutsChanged: updateCuts,
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: DataInputSection(
+                          boardLength: boardLength,
+                          boardWidth: boardWidth,
+                          kerfValue: kerfValue,
+                          cuts: cuts,
+                          onBoardDimensionsChanged: updateBoardDimensions,
+                          onKerfChanged: updateKerf,
+                          onCutsChanged: updateCuts,
+                          onBoardDimensionsSet: setBoardDimensions,
+                        ),
+                      ),
+                      Expanded(
+                        child: OptimizerOutputSection(
+                          boardLength: boardLength,
+                          boardWidth: boardWidth,
+                          kerfValue: kerfValue,
+                          cuts: cuts,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
-                  child: OptimizerOutputSection(
+                  flex: 1,
+                  child: VisualizerSection(
                     boardLength: boardLength,
                     boardWidth: boardWidth,
                     kerfValue: kerfValue,
@@ -93,16 +142,32 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
               ],
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: VisualizerSection(
-              boardLength: boardLength,
-              boardWidth: boardWidth,
-              kerfValue: kerfValue,
-              cuts: cuts,
+          const StickyFooter(),
+        ],
+      ),
+    );
+  }
+}
+
+class StickyFooter extends StatelessWidget {
+  const StickyFooter({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      color: Theme.of(context).colorScheme.surface,
+      child: Center(
+        child: InkWell(
+          onTap: () => launchUrl(Uri.parse('https://www.uzunu.com/')),
+          child: const Text(
+            'Courtesy of Uzunu',
+            style: TextStyle(
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
             ),
           ),
-        ],
+        ),
       ),
     );
   }

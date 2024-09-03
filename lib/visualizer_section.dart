@@ -18,7 +18,7 @@ class VisualizerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<List<Cut>> optimizedBoards = _optimizeCuts();
+    List<List<Cut>> optimizedBoards = cuts.isEmpty ? [] : _optimizeCuts();
 
     return Container(
       color: Colors.grey[200],
@@ -33,36 +33,64 @@ class VisualizerSection extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: optimizedBoards.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Board ${index + 1}:'),
-                      SizedBox(height: 8),
-                      AspectRatio(
-                        aspectRatio: boardLength / boardWidth,
-                        child: CustomPaint(
-                          painter: BoardPainter(
-                            boardLength: boardLength,
-                            boardWidth: boardWidth,
-                            cuts: optimizedBoards[index],
-                            kerfValue: kerfValue,
-                          ),
+            child: cuts.isEmpty
+                ? _buildEmptyBoard(context)
+                : ListView.builder(
+                    itemCount: optimizedBoards.length,
+                    itemBuilder: (context, index) {
+                      double remainingLength =
+                          _calculateRemainingLength(optimizedBoards[index]);
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Board ${index + 1}:'),
+                            SizedBox(height: 8),
+                            AspectRatio(
+                              aspectRatio: boardLength / boardWidth,
+                              child: CustomPaint(
+                                painter: BoardPainter(
+                                  boardLength: boardLength,
+                                  boardWidth: boardWidth,
+                                  cuts: optimizedBoards[index],
+                                  kerfValue: kerfValue,
+                                  remainingLength: remainingLength,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyBoard(BuildContext context) {
+    return Center(
+      child: AspectRatio(
+        aspectRatio: boardLength / boardWidth,
+        child: CustomPaint(
+          painter: BoardPainter(
+            boardLength: boardLength,
+            boardWidth: boardWidth,
+            cuts: [],
+            kerfValue: kerfValue,
+            remainingLength: boardLength,
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _calculateRemainingLength(List<Cut> boardCuts) {
+    double usedLength =
+        boardCuts.fold(0, (sum, cut) => sum + cut.length + kerfValue);
+    return boardLength - usedLength;
   }
 
   List<List<Cut>> _optimizeCuts() {
@@ -108,7 +136,7 @@ class VisualizerSection extends StatelessWidget {
       if (currentBoard.isNotEmpty) {
         boards.add(currentBoard);
       } else {
-        break; // Unable to fit any more cuts
+        break;
       }
     }
 
@@ -116,11 +144,13 @@ class VisualizerSection extends StatelessWidget {
   }
 
   bool _canPlaceCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
-    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
-      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
-        if (y + dy >= usedSpace.length ||
-            x + dx >= usedSpace[0].length ||
-            usedSpace[y + dy][x + dx]) {
+    if (y + cut.width.ceil() > boardWidth.ceil() ||
+        x + cut.length.ceil() > boardLength.ceil()) {
+      return false;
+    }
+    for (int dy = 0; dy < cut.width.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil(); dx++) {
+        if (usedSpace[y + dy][x + dx]) {
           return false;
         }
       }
@@ -129,9 +159,20 @@ class VisualizerSection extends StatelessWidget {
   }
 
   void _placeCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
-    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
-      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+    for (int dy = 0; dy < cut.width.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil(); dx++) {
         usedSpace[y + dy][x + dx] = true;
+      }
+    }
+    // Add kerf around the cut
+    for (int dy = -1; dy <= cut.width.ceil(); dy++) {
+      for (int dx = -1; dx <= cut.length.ceil(); dx++) {
+        if (y + dy >= 0 &&
+            y + dy < boardWidth.ceil() &&
+            x + dx >= 0 &&
+            x + dx < boardLength.ceil()) {
+          usedSpace[y + dy][x + dx] = true;
+        }
       }
     }
   }
@@ -142,12 +183,14 @@ class BoardPainter extends CustomPainter {
   final double boardWidth;
   final List<Cut> cuts;
   final double kerfValue;
+  final double remainingLength;
 
   BoardPainter({
     required this.boardLength,
     required this.boardWidth,
     required this.cuts,
     required this.kerfValue,
+    required this.remainingLength,
   });
 
   @override
@@ -203,6 +246,51 @@ class BoardPainter extends CustomPainter {
             yOffset + (cutHeight - textPainter.height) / 2),
       );
     }
+
+    // Draw remaining length
+    if (remainingLength > 0) {
+      double remainingWidth = remainingLength * scaleX;
+      double xOffset = size.width - remainingWidth;
+
+      paint.color = Colors.grey[400]!;
+      canvas.drawRect(
+          Rect.fromLTWH(xOffset, 0, remainingWidth, size.height), paint);
+
+      textPainter.text = TextSpan(
+        text: 'Remaining:\n${remainingLength.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.black, fontSize: 10),
+      );
+      textPainter.layout(maxWidth: remainingWidth);
+      textPainter.paint(
+        canvas,
+        Offset(xOffset + (remainingWidth - textPainter.width) / 2,
+            (size.height - textPainter.height) / 2),
+      );
+    }
+    // Draw legends
+    paint.color = Colors.black;
+    paint.style = PaintingStyle.stroke;
+    paint.strokeWidth = 1;
+
+    // Length legend
+    canvas.drawLine(
+        Offset(0, size.height), Offset(size.width, size.height), paint);
+    textPainter.text = TextSpan(
+      text: 'L',
+      style: TextStyle(color: Colors.black, fontSize: 12),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width / 2, size.height + 2));
+
+    // Width legend
+    canvas.drawLine(
+        Offset(size.width, 0), Offset(size.width, size.height), paint);
+    textPainter.text = TextSpan(
+      text: 'W',
+      style: TextStyle(color: Colors.black, fontSize: 12),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width + 2, size.height / 2));
   }
 
   @override

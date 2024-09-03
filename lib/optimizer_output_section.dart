@@ -124,11 +124,13 @@ class OptimizerOutputSection extends StatelessWidget {
   }
 
   bool _canPlaceCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
-    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
-      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
-        if (y + dy >= usedSpace.length ||
-            x + dx >= usedSpace[0].length ||
-            usedSpace[y + dy][x + dx]) {
+    if (y + cut.width.ceil() > boardWidth.ceil() ||
+        x + cut.length.ceil() > boardLength.ceil()) {
+      return false;
+    }
+    for (int dy = 0; dy < cut.width.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil(); dx++) {
+        if (usedSpace[y + dy][x + dx]) {
           return false;
         }
       }
@@ -137,9 +139,20 @@ class OptimizerOutputSection extends StatelessWidget {
   }
 
   void _placeCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
-    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
-      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+    for (int dy = 0; dy < cut.width.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil(); dx++) {
         usedSpace[y + dy][x + dx] = true;
+      }
+    }
+    // Add kerf around the cut
+    for (int dy = -1; dy <= cut.width.ceil(); dy++) {
+      for (int dx = -1; dx <= cut.length.ceil(); dx++) {
+        if (y + dy >= 0 &&
+            y + dy < boardWidth.ceil() &&
+            x + dx >= 0 &&
+            x + dx < boardLength.ceil()) {
+          usedSpace[y + dy][x + dx] = true;
+        }
       }
     }
   }
