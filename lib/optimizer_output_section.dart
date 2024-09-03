@@ -74,7 +74,10 @@ class OptimizerOutputSection extends StatelessWidget {
   }
 
   List<List<Cut>> _optimizeCuts() {
-    List<Cut> remainingCuts = List.from(cuts);
+    List<Cut> remainingCuts = cuts
+        .expand(
+            (cut) => List.filled(cut.quantity, Cut(cut.length, cut.width, 1)))
+        .toList();
     remainingCuts
         .sort((a, b) => (b.length * b.width).compareTo(a.length * a.width));
 
@@ -82,22 +85,31 @@ class OptimizerOutputSection extends StatelessWidget {
 
     while (remainingCuts.isNotEmpty) {
       List<Cut> currentBoard = [];
-      List<bool> used = List.filled(boardLength.ceil(), false);
+      List<List<bool>> usedSpace = List.generate(
+        boardWidth.ceil(),
+        (_) => List.filled(boardLength.ceil(), false),
+      );
 
       for (int i = 0; i < remainingCuts.length; i++) {
         Cut cut = remainingCuts[i];
-        int start = _findSpace(used, cut.length.ceil());
+        bool placed = false;
 
-        if (start != -1 && cut.width <= boardWidth) {
-          currentBoard.add(cut);
-          for (int j = start; j < start + cut.length.ceil(); j++) {
-            used[j] = true;
+        for (int y = 0; y <= boardWidth.ceil() - cut.width.ceil(); y++) {
+          for (int x = 0; x <= boardLength.ceil() - cut.length.ceil(); x++) {
+            if (_canPlaceCut(usedSpace, x, y, cut)) {
+              _placeCut(usedSpace, x, y, cut);
+              currentBoard.add(Cut(cut.length, cut.width, 1,
+                  x: x.toDouble(), y: y.toDouble()));
+              placed = true;
+              break;
+            }
           }
-          remainingCuts[i] = Cut(cut.length, cut.width, cut.quantity - 1);
-          if (remainingCuts[i].quantity == 0) {
-            remainingCuts.removeAt(i);
-            i--;
-          }
+          if (placed) break;
+        }
+
+        if (placed) {
+          remainingCuts.removeAt(i);
+          i--;
         }
       }
 
@@ -111,18 +123,24 @@ class OptimizerOutputSection extends StatelessWidget {
     return boards;
   }
 
-  int _findSpace(List<bool> used, int length) {
-    int count = 0;
-    for (int i = 0; i < used.length; i++) {
-      if (!used[i]) {
-        count++;
-        if (count == length) {
-          return i - length + 1;
+  bool _canPlaceCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
+    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+        if (y + dy >= usedSpace.length ||
+            x + dx >= usedSpace[0].length ||
+            usedSpace[y + dy][x + dx]) {
+          return false;
         }
-      } else {
-        count = 0;
       }
     }
-    return -1;
+    return true;
+  }
+
+  void _placeCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
+    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+        usedSpace[y + dy][x + dx] = true;
+      }
+    }
   }
 }

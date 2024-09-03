@@ -77,18 +77,29 @@ class VisualizerSection extends StatelessWidget {
 
     while (remainingCuts.isNotEmpty) {
       List<Cut> currentBoard = [];
-      double remainingLength = boardLength;
-      double remainingWidth = boardWidth;
+      List<List<bool>> usedSpace = List.generate(
+        boardWidth.ceil(),
+        (_) => List.filled(boardLength.ceil(), false),
+      );
 
       for (int i = 0; i < remainingCuts.length; i++) {
         Cut cut = remainingCuts[i];
-        if (cut.length <= remainingLength && cut.width <= remainingWidth) {
-          currentBoard.add(cut);
-          if (cut.width == remainingWidth) {
-            remainingLength -= cut.length;
-          } else {
-            remainingWidth -= cut.width;
+        bool placed = false;
+
+        for (int y = 0; y <= boardWidth.ceil() - cut.width.ceil(); y++) {
+          for (int x = 0; x <= boardLength.ceil() - cut.length.ceil(); x++) {
+            if (_canPlaceCut(usedSpace, x, y, cut)) {
+              _placeCut(usedSpace, x, y, cut);
+              currentBoard.add(Cut(cut.length, cut.width, 1,
+                  x: x.toDouble(), y: y.toDouble()));
+              placed = true;
+              break;
+            }
           }
+          if (placed) break;
+        }
+
+        if (placed) {
           remainingCuts.removeAt(i);
           i--;
         }
@@ -104,19 +115,25 @@ class VisualizerSection extends StatelessWidget {
     return boards;
   }
 
-  int _findSpace(List<bool> used, int length) {
-    int count = 0;
-    for (int i = 0; i < used.length; i++) {
-      if (!used[i]) {
-        count++;
-        if (count == length) {
-          return i - length + 1;
+  bool _canPlaceCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
+    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+        if (y + dy >= usedSpace.length ||
+            x + dx >= usedSpace[0].length ||
+            usedSpace[y + dy][x + dx]) {
+          return false;
         }
-      } else {
-        count = 0;
       }
     }
-    return -1;
+    return true;
+  }
+
+  void _placeCut(List<List<bool>> usedSpace, int x, int y, Cut cut) {
+    for (int dy = 0; dy < cut.width.ceil() + kerfValue.ceil(); dy++) {
+      for (int dx = 0; dx < cut.length.ceil() + kerfValue.ceil(); dx++) {
+        usedSpace[y + dy][x + dx] = true;
+      }
+    }
   }
 }
 
@@ -146,8 +163,6 @@ class BoardPainter extends CustomPainter {
     paint.color = Colors.brown[300]!;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
-    double xOffset = 0;
-    double yOffset = 0;
     double scaleX = size.width / boardLength;
     double scaleY = size.height / boardWidth;
 
@@ -156,11 +171,24 @@ class BoardPainter extends CustomPainter {
       Cut cut = cuts[i];
       double cutWidth = cut.length * scaleX;
       double cutHeight = cut.width * scaleY;
+      double xOffset = cut.x! * scaleX;
+      double yOffset = cut.y! * scaleY;
 
       // Draw cut
       paint.color = _getColor(i);
       canvas.drawRect(
           Rect.fromLTWH(xOffset, yOffset, cutWidth, cutHeight), paint);
+
+      // Draw kerf
+      paint.color = Colors.grey[600]!;
+      canvas.drawRect(
+          Rect.fromLTWH(
+              xOffset + cutWidth, yOffset, kerfValue * scaleX, cutHeight),
+          paint);
+      canvas.drawRect(
+          Rect.fromLTWH(
+              xOffset, yOffset + cutHeight, cutWidth, kerfValue * scaleY),
+          paint);
 
       // Draw cut label
       textPainter.text = TextSpan(
@@ -174,13 +202,6 @@ class BoardPainter extends CustomPainter {
         Offset(xOffset + (cutWidth - textPainter.width) / 2,
             yOffset + (cutHeight - textPainter.height) / 2),
       );
-
-      if (cut.width == boardWidth) {
-        xOffset += cutWidth;
-        yOffset = 0;
-      } else {
-        yOffset += cutHeight;
-      }
     }
   }
 

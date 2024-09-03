@@ -2,8 +2,10 @@ class Cut {
   final double length;
   final double width;
   final int quantity;
+  final double? x;
+  final double? y;
 
-  Cut(this.length, this.width, this.quantity);
+  Cut(this.length, this.width, this.quantity, {this.x, this.y});
 
   @override
   bool operator ==(Object other) =>

@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import 'cut.dart';
 
 class DataInputSection extends StatefulWidget {
@@ -200,7 +200,6 @@ class _DataInputSectionState extends State<DataInputSection> {
             onChanged: (_) => _updateCuts(),
             textInputAction: TextInputAction.done,
             onEditingComplete: () {
-              // Move focus to the next row's length input if available, otherwise add a new cut
               if (index < lengthFocusNodes.length - 1) {
                 lengthFocusNodes[index + 1].requestFocus();
               } else {
@@ -232,16 +231,18 @@ class _DataInputSectionState extends State<DataInputSection> {
     for (int i = 0; i < lengthControllers.length; i++) {
       final length = double.tryParse(lengthControllers[i].text) ?? 0;
       final width = double.tryParse(widthControllers[i].text) ?? 0;
-      final quantity = math.max(
-          1, int.tryParse(quantityControllers[i].text) ?? 1); // Use math.max
+      final quantity =
+          math.max(1, int.tryParse(quantityControllers[i].text) ?? 1);
 
-      final newCut = Cut(length, width, quantity);
+      if (length > 0 && width > 0) {
+        final newCut = Cut(length, width, quantity);
 
-      if (i >= widget.cuts.length || newCut != widget.cuts[i]) {
-        hasChanges = true;
+        if (i >= widget.cuts.length || newCut != widget.cuts[i]) {
+          hasChanges = true;
+        }
+
+        newCuts.add(newCut);
       }
-
-      newCuts.add(newCut);
     }
 
     if (hasChanges || newCuts.length != widget.cuts.length) {
@@ -354,8 +355,10 @@ class NumberInput extends StatelessWidget {
         if (max != null) _MaxValueFormatter(max!),
       ],
       onChanged: (value) {
-        // Allow empty string, but convert to '0' for onChanged callback
-        onChanged?.call(value.isEmpty ? '0' : value);
+        // Only call onChanged if the value is not empty
+        if (value.isNotEmpty) {
+          onChanged?.call(value);
+        }
       },
       onFieldSubmitted: (_) => onEnter?.call(),
       onEditingComplete: onEditingComplete,
