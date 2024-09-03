@@ -27,7 +27,7 @@ class PrintPage extends StatelessWidget {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Cut Optimizer - Cut List</title>
+        <title>Chopwise - Cut costs, not corners</title>
         <style>
           body { font-family: Arial, sans-serif; }
           .board-container { position: relative; margin-bottom: 20px; }
@@ -39,7 +39,7 @@ class PrintPage extends StatelessWidget {
         </style>
       </head>
       <body>
-        <h1>Cut Optimizer - Cut List</h1>
+        <h1>Chopwise - Cut costs, not corners</h1>
         <p>Board Dimensions: $boardLength x $boardWidth</p>
         <p>Kerf: $kerfValue</p>
         ${_generateBoardsHtml()}

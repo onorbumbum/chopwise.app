@@ -89,7 +89,7 @@ class _CutOptimizerHomeState extends State<CutOptimizerHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cut Optimizer'),
+        title: const Text('Chopwise - Cut costs, not corners'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
