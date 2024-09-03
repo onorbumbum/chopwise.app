@@ -16,7 +16,7 @@ class CutOptimizerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cut Optimizer',
+      title: 'Chopwise - Cut costs, not corners',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,

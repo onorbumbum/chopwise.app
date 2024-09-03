@@ -132,7 +132,7 @@ class _DataInputSectionState extends State<DataInputSection> {
               NumberInput(
                 controller: kerfController,
                 focusNode: kerfFocusNode,
-                label: 'Blade Kerf (inches)',
+                label: 'Blade Kerf',
                 allowDecimal: true,
                 onChanged: (value) {
                   widget.onKerfChanged(
