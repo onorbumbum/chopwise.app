@@ -73,10 +73,8 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Contact
 
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter) - email@example.com
-
-Project Link: [https://github.com/yourusername/chopwise.app](https://github.com/yourusername/chopwise.app)
+Onur Uzunismail - onur@uzunu.com
 
 ---
 
-Chopwise - Making every cut count!
+Chopwise - Cut costs, not corners!
